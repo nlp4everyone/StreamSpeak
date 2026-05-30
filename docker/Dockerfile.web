@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Ho_Chi_Minh
+
+# =============================================================================
+# System Dependencies
+# =============================================================================
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    tzdata \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -fs /usr/share/zoneinfo/$TZ /etc/localtime \
+    && dpkg-reconfigure --frontend noninteractive tzdata
+
+# =============================================================================
+# Dependencies Installation
+# =============================================================================
+COPY requirements/requirements_core.txt /app/requirements/requirements_core.txt
+COPY requirements/requirements_component.txt /app/requirements/requirements_component.txt
+
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install -r /app/requirements/requirements_core.txt
+RUN pip install -r /app/requirements/requirements_component.txt
+
+# =============================================================================
+# Application
+# =============================================================================
+COPY . /app
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
