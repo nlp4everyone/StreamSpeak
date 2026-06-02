@@ -1,8 +1,11 @@
 from typing import List, Literal
 from app.core.config import settings
 from app.vad.trigger_strategies import VADTriggerStrategies
-import  torch, threading
+from app.utils.logger import setup_logger
+import torch, threading
 import numpy as np
+
+logger = setup_logger("SileroVAD")
 
 class SileroVAD:
     """
@@ -77,7 +80,9 @@ class SileroVAD:
             )
             # 2. Switch to inference mode — disables dropout and gradient tracking.
             self.model.eval()
+            logger.info("Silero VAD model loaded successfully")
         except Exception as e:
+            logger.error(f"Failed to load Silero VAD model: {e}")
             self.model = None
 
     def _to_float32(self, audio: np.ndarray) -> np.ndarray:

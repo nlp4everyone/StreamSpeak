@@ -1,6 +1,9 @@
 import numpy as np
 from app.asr.nvidia_nemo.engine import NvidiaNemoASREngine
 from app.stabilization.stabilizer import TranscriptStabilizer
+from app.utils.logger import setup_logger
+
+logger = setup_logger("TranscriptionService")
 
 class TranscriptionService:
     """Service for handling speech-to-text transcription."""
@@ -20,7 +23,9 @@ class TranscriptionService:
         Returns:
             Transcribed text
         """
-        return self.asr_engine.transcribe(audio)
+        logger.debug(f"Transcribing audio — samples={len(audio)}")
+        result = self.asr_engine.transcribe(audio)
+        return result
 
     async def atranscribe(self, audio: np.ndarray) -> str:
         """
@@ -35,23 +40,29 @@ class TranscriptionService:
         Returns:
             Transcribed text.
         """
-        return await self.asr_engine.atranscribe(audio)
+        logger.debug(f"Async transcribing audio — samples={len(audio)}")
+        result = await self.asr_engine.atranscribe(audio)
+        return result
     
     def stabilize_transcript(self,
                              new_hypothesis: str,
                              previous_text: str) -> str:
         """
         Stabilize transcript hypothesis.
-        
+
         Args:
             new_hypothesis: New transcript hypothesis
             previous_text: Previous stabilized text
-            
+
         Returns:
             Stabilized transcript
         """
-        return self.stabilizer.stabilize(new_hypothesis, previous_text)
-    
+        stabilized = self.stabilizer.stabilize(new_hypothesis, previous_text)
+        logger.debug(f"Stabilized: '{previous_text}' + '{new_hypothesis}' -> '{stabilized}'")
+        return stabilized
+
     def is_ready(self) -> bool:
         """Check if STT engine is ready."""
-        return self.asr_engine.is_ready()
+        ready = self.asr_engine.is_ready()
+        logger.info(f"ASR engine ready: {ready}")
+        return ready

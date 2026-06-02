@@ -1,7 +1,10 @@
 import numpy as np
 import soundfile as sf
 from app.core.config import settings
+from app.utils.logger import setup_logger
 import requests, aiohttp, io
+
+logger = setup_logger("NvidiaNemoASR")
 
 class NvidiaNemoASREngine:
     """
@@ -86,6 +89,7 @@ class NvidiaNemoASREngine:
         """
         # Step 1: encode numpy audio to 16-bit PCM WAV in memory.
         wav_bytes = self._to_wav_bytes(audio)
+        logger.debug(f"Posting {len(audio)} samples to NeMo ASR at {self.api_url}")
 
         # Step 2: POST to the NeMo server as a multipart form upload.
         # "verbose_json" makes the server include word-level timestamps in
@@ -105,7 +109,9 @@ class NvidiaNemoASREngine:
 
         # Step 4: extract the transcript; fall back to "" if the key is
         # absent (e.g. silence or unsupported audio).
-        return response.json().get("text", "")
+        text = response.json().get("text", "")
+        logger.debug(f"NeMo ASR response: '{text}'")
+        return text
 
     async def atranscribe(self,
                           audio: np.ndarray) -> str:
@@ -133,6 +139,7 @@ class NvidiaNemoASREngine:
         # _to_wav_bytes is CPU-bound but fast (<1 ms for typical chunks),
         # so running it inline is fine without run_in_executor.
         wav_bytes = self._to_wav_bytes(audio)
+        logger.debug(f"Async posting {len(audio)} samples to NeMo ASR at {self.api_url}")
 
         # Step 2: build the multipart form payload.
         form = aiohttp.FormData()
@@ -149,7 +156,9 @@ class NvidiaNemoASREngine:
 
                 # Step 5: parse JSON and extract transcript.
                 body = await response.json(content_type=None)
-                return body.get("text", "")
+                text = body.get("text", "")
+                logger.debug(f"NeMo ASR async response: '{text}'")
+                return text
 
     def is_ready(self) -> bool:
         """
@@ -163,7 +172,9 @@ class NvidiaNemoASREngine:
             # A GET to the transcription endpoint is enough to confirm the
             # server is up; we don't parse the response body.
             requests.get(self.api_url, timeout=2)
+            logger.info(f"ASR server reachable at {self.api_url}")
             return True
-        except Exception:
+        except Exception as e:
             # Covers ConnectionError, Timeout, and any other network issue.
+            logger.warning(f"ASR server not reachable at {self.api_url}: {e}")
             return False
