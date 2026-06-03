@@ -27,6 +27,16 @@ RUN pip install -r /app/requirements/requirements_core.txt
 RUN pip install -r /app/requirements/requirements_component.txt
 
 # =============================================================================
+# Model Cache
+# Pre-download SileroVAD into the image layer so runtime startup needs no
+# internet access. Placed before COPY . so source changes don't bust this layer.
+# =============================================================================
+RUN python -c "\
+import torch; \
+torch.hub.load('snakers4/silero-vad', 'silero_vad', \
+    force_reload=False, onnx=True, trust_repo=True)"
+
+# =============================================================================
 # Application
 # =============================================================================
 COPY . /app
