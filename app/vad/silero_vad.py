@@ -35,7 +35,8 @@ class SileroVAD:
     def __init__(self,
                  threshold: float = settings.VAD_THRESHOLD,
                  sample_rate: int = settings.VAD_SAMPLE_RATE,
-                 window_size_samples: int = settings.VAD_WINDOW_SIZE_SAMPLES):
+                 window_size_samples: int = settings.VAD_WINDOW_SIZE_SAMPLES,
+                 enable_onnx: bool = settings.VAD_ENABLE_ONNX):
         """
         Args:
             threshold: Speech-probability cutoff used by all detection methods.
@@ -48,10 +49,15 @@ class SileroVAD:
             window_size_samples: Number of samples per inference frame.
                 Must be 256 (16 ms) or 512 (32 ms) at 16 kHz per Silero docs.
                 Defaults to ``settings.VAD_WINDOW_SIZE_SAMPLES``.
+            enable_onnx: Use ONNX runtime instead of PyTorch JIT for inference.
+                ONNX loads faster and has lower CPU overhead; disable only if
+                the onnxruntime package is unavailable.
+                Defaults to ``settings.VAD_ENABLE_ONNX`` (env: ``VAD_ENABLE_ONNX``).
         """
         self.threshold = threshold
         self.sample_rate = sample_rate
         self.window_size_samples = window_size_samples
+        self.enable_onnx = enable_onnx
         self.model = None
         # Silero VAD is stateful (GRU hidden state); serialize concurrent calls
         # so internal state from one clip does not bleed into another.
@@ -75,12 +81,13 @@ class SileroVAD:
                 repo_or_dir='snakers4/silero-vad',
                 model='silero_vad',
                 force_reload=False,
-                onnx=False,
+                onnx=self.enable_onnx,
                 trust_repo=True,
             )
-            # 2. Switch to inference mode — disables dropout and gradient tracking.
-            self.model.eval()
-            logger.info("Silero VAD model loaded successfully")
+            # 2. Switch to inference mode — OnnxWrapper has no .eval(), PyTorch model does.
+            if not self.enable_onnx:
+                self.model.eval()
+            logger.info(f"Silero VAD model loaded successfully (onnx={self.enable_onnx})")
         except Exception as e:
             logger.error(f"Failed to load Silero VAD model: {e}")
             self.model = None

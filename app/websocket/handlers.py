@@ -1,5 +1,6 @@
 import numpy as np
 from datetime import datetime
+from typing import Optional
 from app.websocket.manager import ConnectionManager
 from app.session.state import StreamingSession
 from app.session.manager import SessionManager
@@ -15,14 +16,17 @@ logger = setup_logger("StreamingHandler")
 
 class StreamingHandler:
     """Handles streaming audio processing and transcription."""
-    
+
     def __init__(self,
                  connection_manager: ConnectionManager,
-                 session_manager: SessionManager):
+                 session_manager: SessionManager,
+                 vad: Optional[SileroVAD] = None):
         """
         Args:
             connection_manager: Manages active WebSocket connections and message dispatch.
             session_manager: Manages per-session state lifecycle.
+            vad: Pre-loaded SileroVAD instance. If None, a new instance is created
+                 (triggers model load — prefer passing a preloaded instance at startup).
         """
         self.connection_manager = connection_manager
         self.session_manager = session_manager
@@ -30,7 +34,7 @@ class StreamingHandler:
         self.streaming_service = StreamingService()
         self.transcription_service = TranscriptionService()
         self.stabilization_service = StabilizationService()
-        self.vad = SileroVAD()
+        self.vad = vad if vad is not None else SileroVAD()
         logger.info("StreamingHandler initialized")
 
 
