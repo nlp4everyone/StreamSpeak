@@ -1,7 +1,7 @@
 from .session import SessionStatusResponse, SessionStatus
 from .audio import AudioMessage
 from .transcript import TranscriptMessage, TranscriptResponse
-from .websocket import ErrorMessage, ControlMessage, SessionInfoMessage, WebSocketMessage
+from .websocket import ErrorMessage, ControlMessage, SessionInfoMessage, WebSocketMessage, BackpressureMessage
 from .health import HealthResponse
 
 __all__ = [
@@ -14,5 +14,6 @@ __all__ = [
     "ControlMessage",
     "SessionInfoMessage",
     "WebSocketMessage",
+    "BackpressureMessage",
     "HealthResponse",
 ]

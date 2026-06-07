@@ -94,8 +94,17 @@ class StreamingHandler:
                     f"(queue size: {session.audio_queue.qsize()})"
                 )
             except asyncio.QueueFull:
-                # Worker is falling behind — drop oldest window to stay real-time.
-                logger.debug(f"[{session_id}] Inference queue full — dropping window")
+                session.dropped_windows += 1
+                now = datetime.now()
+                if session.should_signal_backpressure(now):
+                    session.last_backpressure_signal = now
+                    await self.connection_manager.send_backpressure(
+                        session_id, "queue_full", session.dropped_windows
+                    )
+                logger.debug(
+                    f"[{session_id}] Inference queue full — dropping window "
+                    f"(total drops: {session.dropped_windows})"
+                )
 
     async def handle_control_message(self,
                                      session_id: str,
@@ -187,7 +196,7 @@ class StreamingHandler:
         except asyncio.CancelledError:
             logger.debug(f"[{session_id}] Inference worker cancelled")
 
-    async def _run_vad(self, audio_window: np.ndarray) -> tuple:
+    async def _run_vad(self, session: StreamingSession, audio_window: np.ndarray) -> tuple:
         """
         Checkout a VAD instance from the pool, run is_speech() on a dedicated
         thread, then return the instance to the pool.
@@ -199,7 +208,17 @@ class StreamingHandler:
         try:
             vad = await asyncio.wait_for(self.vad_pool.get(), timeout=5.0)
         except asyncio.TimeoutError:
-            logger.error("VAD pool exhausted — all instances busy, dropping inference window")
+            session.dropped_windows += 1
+            now = datetime.now()
+            if session.should_signal_backpressure(now):
+                session.last_backpressure_signal = now
+                await self.connection_manager.send_backpressure(
+                    session.session_id, "vad_pool_exhausted", session.dropped_windows
+                )
+            logger.error(
+                f"[{session.session_id}] VAD pool exhausted — dropping inference window "
+                f"(total drops: {session.dropped_windows})"
+            )
             return False, []
 
         try:
@@ -234,7 +253,7 @@ class StreamingHandler:
         if len(audio_window) == 0:
             return
 
-        is_speech, probs = await self._run_vad(audio_window)
+        is_speech, probs = await self._run_vad(session, audio_window)
         current_time = datetime.now()
         was_speaking = session.vad_state.is_speaking
         session.vad_state.update(is_speech, current_time)

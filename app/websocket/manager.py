@@ -1,6 +1,6 @@
 from fastapi import WebSocket
 from typing import Dict, Optional
-from app.schema import TranscriptMessage, ErrorMessage, SessionInfoMessage
+from app.schema import TranscriptMessage, ErrorMessage, SessionInfoMessage, BackpressureMessage
 from datetime import datetime
 
 class ConnectionManager:
@@ -112,6 +112,29 @@ class ConnectionManager:
             return True
         except Exception as e:
             print(f"Error sending session info to {session_id}: {e}")
+            self.disconnect(session_id)
+            return False
+
+    async def send_backpressure(self,
+                               session_id: str,
+                               reason: str,
+                               dropped_windows: int) -> bool:
+        """Notify the client that the server is dropping inference windows."""
+        if session_id not in self.active_connections:
+            return False
+
+        websocket = self.active_connections[session_id]
+        message = BackpressureMessage(
+            reason=reason,
+            dropped_windows=dropped_windows,
+            timestamp=datetime.now()
+        )
+
+        try:
+            await websocket.send_json(message.model_dump(mode='json'))
+            return True
+        except Exception as e:
+            print(f"Error sending backpressure to {session_id}: {e}")
             self.disconnect(session_id)
             return False
 

@@ -25,6 +25,14 @@ class SessionInfoMessage(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class BackpressureMessage(BaseModel):
+    """Sent to the client when the server is dropping inference windows."""
+    type: Literal["backpressure"] = "backpressure"
+    reason: Literal["queue_full", "vad_pool_exhausted"]
+    dropped_windows: int
+    timestamp: Optional[datetime] = None
+
+
 class WebSocketMessage(BaseModel):
     """Union type for all WebSocket messages."""
     type: str

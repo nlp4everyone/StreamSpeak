@@ -107,7 +107,17 @@ class StreamingSession:
         # drains them independently so receive is never blocked by ASR latency.
         self.audio_queue: asyncio.Queue = asyncio.Queue(maxsize=settings.INFERENCE_QUEUE_MAXSIZE)
         self.inference_task: Optional[asyncio.Task] = None
+
+        # Backpressure tracking: count dropped windows and rate-limit client signals.
+        self.dropped_windows: int = 0
+        self.last_backpressure_signal: Optional[datetime] = None
     
+    def should_signal_backpressure(self, now: datetime, min_interval_s: float = 1.0) -> bool:
+        """True if enough time has passed since the last backpressure signal to the client."""
+        if self.last_backpressure_signal is None:
+            return True
+        return (now - self.last_backpressure_signal).total_seconds() >= min_interval_s
+
     def update_activity(self) -> None:
         """Refresh the idle timestamp; used by cleanup_inactive_sessions to detect stale sessions."""
         self.last_activity = datetime.now()
@@ -125,6 +135,8 @@ class StreamingSession:
         self.transcript_state.reset()
         self.last_inference_time = None
         self.inference_count = 0
+        self.dropped_windows = 0
+        self.last_backpressure_signal = None
         # Drain the queue so the worker doesn't process stale windows after reset.
         while not self.audio_queue.empty():
             self.audio_queue.get_nowait()
