@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     VAD_TRIGGER_STRATEGY: str = "ema_smoothed"  # consecutive_frames | ema_smoothed | state_machine
     VAD_MODEL_PATH: str = "/app/models/silero_vad.onnx"
+    VAD_USE_INT8: bool = False  # prefer INT8 quantized model; set False to force FP32
     # Hysteresis thresholds for state_machine strategy.
     # onset_threshold > offset_threshold creates a neutral band [offset, onset]
     # where no state transition occurs, eliminating chattering near the boundary.

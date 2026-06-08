@@ -18,13 +18,12 @@ RUN apt-get update && apt-get install -y \
     && dpkg-reconfigure --frontend noninteractive tzdata
 
 # =============================================================================
+RUN pip install --upgrade pip setuptools wheel
 # Dependencies Installation
 # =============================================================================
 COPY requirements/requirements_core.txt /app/requirements/requirements_core.txt
-COPY requirements/requirements_component.txt /app/requirements/requirements_component.txt
-
-RUN pip install --upgrade pip setuptools wheel
 RUN pip install -r /app/requirements/requirements_core.txt
+COPY requirements/requirements_component.txt /app/requirements/requirements_component.txt
 RUN pip install -r /app/requirements/requirements_component.txt
 
 # =============================================================================

@@ -2,3 +2,5 @@ python_magic==0.4.27
 scipy==1.17.1
 soundfile==0.13.1
 onnxruntime==1.26.0
+onnx==1.21.0
+sympy==1.14.0

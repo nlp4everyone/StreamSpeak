@@ -78,10 +78,20 @@ class SileroVAD:
     ]
 
     def _resolve_model_path(self) -> str | None:
-        """Return the first model path that exists, or None."""
-        candidates = [settings.VAD_MODEL_PATH] + self._FALLBACK_PATHS
+        """Return the first model path that exists, preferring INT8 over FP32 when VAD_USE_INT8 is set."""
+        base = settings.VAD_MODEL_PATH
+        if settings.VAD_USE_INT8:
+            candidates = (
+                [base.replace(".onnx", "_int8.onnx"), base]
+                + [p.replace(".onnx", "_int8.onnx") for p in self._FALLBACK_PATHS]
+                + self._FALLBACK_PATHS
+            )
+        else:
+            candidates = [base] + self._FALLBACK_PATHS
         for path in candidates:
             if os.path.isfile(path):
+                if "_int8" in path:
+                    logger.info(f"Using INT8 quantized VAD model: {path}")
                 return path
         logger.error(
             f"Silero VAD ONNX model not found. Tried: {candidates}"
@@ -118,6 +128,9 @@ class SileroVAD:
             state_meta = next(i for i in self.model.get_inputs() if i.name == "state")
             self._state = np.zeros(
                 (state_meta.shape[0], 1, state_meta.shape[2]), dtype=np.float32
+            )
+            self._input_buf = np.zeros(
+                (1, self._context_size + self.window_size_samples), dtype=np.float32
             )
             logger.info(f"Silero VAD model loaded successfully (onnxruntime, path={path})")
         except Exception as e:
@@ -176,11 +189,12 @@ class SileroVAD:
             if len(chunk) < self.window_size_samples:
                 break
             # Prepend context from previous frame — model expects [1, context+window].
-            x = np.concatenate([self._context, chunk[np.newaxis, :]], axis=1)
+            self._input_buf[:, :self._context_size] = self._context
+            self._input_buf[:, self._context_size:] = chunk
             ort_outs = self.model.run(
                 None,
                 {
-                    "input": x,
+                    "input": self._input_buf,
                     "state": self._state,
                     "sr": self._sr,
                 },
@@ -188,7 +202,7 @@ class SileroVAD:
             # output: [1, 1], stateN: updated GRU state
             prob_arr, self._state = ort_outs[0], ort_outs[1]
             # Slide context forward: keep last context_size samples of full input.
-            self._context = x[:, -self._context_size:]
+            self._context[:] = self._input_buf[:, -self._context_size:]
             probs.append(float(prob_arr[0, 0]))
 
         return probs
