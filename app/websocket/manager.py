@@ -1,7 +1,10 @@
+import logging
 from fastapi import WebSocket
 from typing import Dict, Optional
 from app.schema import TranscriptMessage, ErrorMessage, SessionInfoMessage, BackpressureMessage
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     """Manages WebSocket connections for streaming sessions."""
@@ -60,7 +63,7 @@ class ConnectionManager:
             await websocket.send_json(message.model_dump(mode='json'))
             return True
         except Exception as e:
-            print(f"Error sending transcript to {session_id}: {e}")
+            logger.warning(f"Error sending transcript to {session_id}: {e}")
             self.disconnect(session_id)
             return False
 
@@ -86,7 +89,7 @@ class ConnectionManager:
             await websocket.send_json(error_message.model_dump(mode='json'))
             return True
         except Exception as e:
-            print(f"Error sending error to {session_id}: {e}")
+            logger.warning(f"Error sending error to {session_id}: {e}")
             self.disconnect(session_id)
             return False
 
@@ -111,7 +114,7 @@ class ConnectionManager:
             await websocket.send_json(message.model_dump(mode='json'))
             return True
         except Exception as e:
-            print(f"Error sending session info to {session_id}: {e}")
+            logger.warning(f"Error sending session info to {session_id}: {e}")
             self.disconnect(session_id)
             return False
 
@@ -134,7 +137,7 @@ class ConnectionManager:
             await websocket.send_json(message.model_dump(mode='json'))
             return True
         except Exception as e:
-            print(f"Error sending backpressure to {session_id}: {e}")
+            logger.warning(f"Error sending backpressure to {session_id}: {e}")
             self.disconnect(session_id)
             return False
 
@@ -148,7 +151,7 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                print(f"Error broadcasting to {session_id}: {e}")
+                logger.warning(f"Error broadcasting to {session_id}: {e}")
                 disconnected.append(session_id)
 
         # Clean up sessions that failed during broadcast
