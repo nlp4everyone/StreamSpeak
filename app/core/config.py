@@ -43,9 +43,11 @@ class Settings(BaseSettings):
     VAD_POOL_SIZE: int = 8              # number of parallel VAD instances; match ASR_SEMAPHORE_LIMIT
     
     # Stabilizer settings
-    STABILIZER_STRATEGY: str = "hard_length"  # frozen_prefix | hard_length | hard_then_frozen
+    STABILIZER_STRATEGY: str = "frozen_prefix"  # frozen_prefix | hard_length | edit_distance | n_consecutive | hard_then_frozen
     STABILIZER_MODE: str = "word_level"          # word_level | character_level
-    STABILIZER_FREEZE_THRESHOLD: int = 3         # consecutive agreements before freezing (frozen_prefix only)
+    STABILIZER_FREEZE_THRESHOLD: int = 3         # frozen_prefix, hard_then_frozen: agreements before freezing
+    STABILIZER_MAX_EDIT_DISTANCE: int = 2        # edit_distance: max word edits allowed vs last output
+    STABILIZER_N_CONSECUTIVE: int = 3            # n_consecutive: frames required to confirm a rollback
 
     # WebSocket settings
     WS_MAX_CONNECTIONS: int = 200   # hard cap on concurrent WebSocket sessions
