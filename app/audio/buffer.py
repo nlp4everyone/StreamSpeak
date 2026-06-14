@@ -21,14 +21,18 @@ class RingAudioBuffer:
 
     def append(self, audio_data: np.ndarray) -> None:
         """Append samples, evicting the oldest when the buffer is full."""
+        # Step 1: Normalize input to a flat int16 array
         samples = np.asarray(audio_data, dtype=np.int16).ravel()
         n = len(samples)
         if n == 0:
             return
+
+        # Step 2: Clamp to buffer capacity — keep only the newest samples
         if n > self.max_samples:
             samples = samples[-self.max_samples:]
             n = self.max_samples
 
+        # Step 3: Write contiguously if space allows, otherwise wrap around the ring
         space_to_end = self.max_samples - self._write_pos
         if n <= space_to_end:
             self._buf[self._write_pos:self._write_pos + n] = samples
@@ -36,16 +40,22 @@ class RingAudioBuffer:
             self._buf[self._write_pos:] = samples[:space_to_end]
             self._buf[:n - space_to_end] = samples[space_to_end:]
 
+        # Step 4: Advance write pointer and update valid sample count
         self._write_pos = (self._write_pos + n) % self.max_samples
         self._count = min(self._count + n, self.max_samples)
 
     def _read_tail(self, n: int) -> np.ndarray:
         """Return the n most-recent samples in chronological order."""
+        # Step 1: Clamp n to the number of valid samples in the buffer
         n = min(n, self._count)
         if n == 0:
             return np.array([], dtype=np.int16)
+
+        # Step 2: Compute start/end positions accounting for ring wrap
         end = self._write_pos
         start = (end - n) % self.max_samples
+
+        # Step 3: Return contiguous slice or concatenate the two wrap-around halves
         if start < end:
             return self._buf[start:end].copy()
         return np.concatenate([self._buf[start:], self._buf[:end]])
@@ -56,19 +66,22 @@ class RingAudioBuffer:
 
     def get_range(self, start_seconds: float, end_seconds: float) -> np.ndarray:
         """Get audio from end_seconds-ago to start_seconds-ago (chronological)."""
+        # Step 1: Convert time boundaries to sample counts
         start_samples = int(start_seconds * self.sample_rate)
         end_samples = int(end_seconds * self.sample_rate)
 
+        # Step 2: Guard against out-of-range or degenerate requests
         if start_samples >= self._count:
             return np.array([], dtype=np.int16)
 
-        end_samples = min(end_samples, self._count)
-        start_samples = max(0, start_samples)
-        if end_samples - start_samples <= 0:
+        start_samples = min(start_samples, self._count)
+        end_samples = max(0, end_samples)
+        if start_samples - end_samples <= 0:
             return np.array([], dtype=np.int16)
 
-        tail = self._read_tail(end_samples)
-        return tail[:-start_samples] if start_samples > 0 else tail
+        # Step 3: Read the deep tail, then strip the most-recent end_samples
+        tail = self._read_tail(start_samples)
+        return tail[:-end_samples] if end_samples > 0 else tail
 
     def clear(self) -> None:
         """Reset the buffer without reallocating."""
