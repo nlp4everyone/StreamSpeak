@@ -393,30 +393,42 @@ class StreamingHandler:
 
         # Step 5: Run ASR when speech is active or the silence gate hasn't closed yet
         if is_speech or session.vad_state.is_speaking:
-            audio_to_transcribe = self._trim_to_speech(audio_window, probs)
-            logger.debug(
-                f"[{session.session_id}] Sending {len(audio_to_transcribe)} samples to ASR "
-                f"(trimmed from {len(audio_window)})"
-            )
-
-            session.asr_call_count += 1
-            transcript = await self.transcription_service.atranscribe(audio_to_transcribe)
-
-            if transcript:
-                # Step 6: Stabilize hypothesis and send to client only if it changed
-                stabilized = self.stabilization_service.stabilize(
-                    session.transcript_state.stabilizer,
-                    transcript,
+            # Delta gate: skip ASR if last_speech_time hasn't advanced since the last call.
+            # VAD only updates last_speech_time on speech frames, so equality means the
+            # window contains only silence — ASR would return a duplicate result.
+            current_speech_ts = session.vad_state.last_speech_time
+            if current_speech_ts is not None and current_speech_ts == session.last_asr_speech_time:
+                logger.debug(
+                    "[%s] Delta gate: no new speech frames since last ASR — skipping",
+                    session.session_id,
+                )
+                # Skip ASR but fall through to Step 7 so silence detection still finalizes.
+            else:
+                session.last_asr_speech_time = current_speech_ts
+                audio_to_transcribe = self._trim_to_speech(audio_window, probs)
+                logger.debug(
+                    f"[{session.session_id}] Sending {len(audio_to_transcribe)} samples to ASR "
+                    f"(trimmed from {len(audio_window)})"
                 )
 
-                if stabilized.strip() != session.transcript_state.partial_transcript.strip():
-                    session.transcript_state.update_partial(stabilized)
-                    logger.info(f"[{session.session_id}] Partial transcript: '{stabilized}'")
-                    await self.connection_manager.send_transcript(
-                        session.session_id, stabilized, is_final=False
+                session.asr_call_count += 1
+                transcript = await self.transcription_service.atranscribe(audio_to_transcribe)
+
+                if transcript:
+                    # Step 6: Stabilize hypothesis and send to client only if it changed
+                    stabilized = self.stabilization_service.stabilize(
+                        session.transcript_state.stabilizer,
+                        transcript,
                     )
-            else:
-                logger.debug(f"[{session.session_id}] ASR returned empty transcript")
+
+                    if stabilized.strip() != session.transcript_state.partial_transcript.strip():
+                        session.transcript_state.update_partial(stabilized)
+                        logger.info(f"[{session.session_id}] Partial transcript: '{stabilized}'")
+                        await self.connection_manager.send_transcript(
+                            session.session_id, stabilized, is_final=False
+                        )
+                else:
+                    logger.debug(f"[{session.session_id}] ASR returned empty transcript")
 
         # Step 7: Finalize transcript when silence threshold closes the utterance
         if not session.vad_state.is_speaking:
