@@ -112,6 +112,9 @@ class StreamingSession:
         # Backpressure tracking: count dropped windows and rate-limit client signals.
         self.dropped_windows: int = 0
         self.last_backpressure_signal: Optional[datetime] = None
+
+        # Total ASR API calls made during this session's lifetime.
+        self.asr_call_count: int = 0
     
     def should_signal_backpressure(self, now: datetime, min_interval_s: float = 1.0) -> bool:
         """True if enough time has passed since the last backpressure signal to the client."""
@@ -138,6 +141,7 @@ class StreamingSession:
         self.inference_count = 0
         self.dropped_windows = 0
         self.last_backpressure_signal = None
+        self.asr_call_count = 0
         # Drain the queue so the worker doesn't process stale windows after reset.
         while not self.audio_queue.empty():
             self.audio_queue.get_nowait()

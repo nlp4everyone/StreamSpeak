@@ -203,7 +203,15 @@ class StreamingHandler:
 
         Safe to call even when partial_transcript is empty — becomes a no-op.
         """
-        # Step 1: Guard — nothing to finalize
+        # Step 1: Log turn-level ASR count on first finalize call (reset prevents double-log)
+        if session.asr_call_count > 0:
+            logger.info(
+                "[%s] Turn ended — ASR calls this turn: %d",
+                session.session_id, session.asr_call_count,
+            )
+            session.asr_call_count = 0
+
+        # Step 2: Guard — nothing to finalize
         if not session.transcript_state.partial_transcript:
             return
 
@@ -211,6 +219,7 @@ class StreamingHandler:
         if settings.FINALIZE_RIGHT_PADDING_ENABLED:
             audio = self._extract_final_window(session)
             if len(audio) > 0:
+                session.asr_call_count += 1
                 transcript = await self.transcription_service.atranscribe(audio)
                 if transcript:
                     logger.debug(
@@ -371,6 +380,7 @@ class StreamingHandler:
         session.vad_state.update(is_speech, current_time)
 
         if is_speech and not was_speaking:
+            session.asr_call_count = 0
             logger.info(f"[{session.session_id}] Speech started")
         elif not is_speech and was_speaking:
             logger.info(f"[{session.session_id}] Speech ended")
@@ -389,6 +399,7 @@ class StreamingHandler:
                 f"(trimmed from {len(audio_window)})"
             )
 
+            session.asr_call_count += 1
             transcript = await self.transcription_service.atranscribe(audio_to_transcribe)
 
             if transcript:
