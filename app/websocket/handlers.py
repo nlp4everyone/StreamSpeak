@@ -371,12 +371,24 @@ class StreamingHandler:
         if len(audio_window) == 0:
             return
 
-        # Step 2: Run VAD to detect speech presence and get per-frame probabilities
+        # Step 2: RMS energy gate — skip VAD+ASR when the window is clearly silent and
+        # the session is not mid-utterance.  Protects the shared VAD pool from idle sessions
+        # so active-speech sessions can check out a slot without queuing.
+        if not session.vad_state.is_speaking:
+            rms = np.sqrt(np.mean(audio_window.astype(np.float32) ** 2))
+            if rms < settings.RMS_SILENCE_THRESHOLD:
+                logger.debug(
+                    "[%s] RMS gate: energy=%.1f < threshold=%d — skipping VAD+ASR",
+                    session.session_id, rms, settings.RMS_SILENCE_THRESHOLD,
+                )
+                return
+
+        # Step 3: Run VAD to detect speech presence and get per-frame probabilities
         is_speech, probs = await self._run_vad(session, audio_window)
         current_time = datetime.now()
         was_speaking = session.vad_state.is_speaking
 
-        # Step 3: Update VAD state machine (silence gate applies SILENCE_THRESHOLD_MS grace)
+        # Step 4: Update VAD state machine (silence gate applies SILENCE_THRESHOLD_MS grace)
         session.vad_state.update(is_speech, current_time)
 
         if is_speech and not was_speaking:
@@ -387,11 +399,11 @@ class StreamingHandler:
 
         logger.debug(f"[{session.session_id}] VAD: is_speech={is_speech} is_speaking={session.vad_state.is_speaking}")
 
-        # Step 4: Optionally commit partial transcript on mid-utterance pause
+        # Step 5: Optionally commit partial transcript on mid-utterance pause
         if settings.INTRA_SILENCE_COMMIT_ENABLED:
             await self._handle_intra_commit(session)
 
-        # Step 5: Run ASR when speech is active or the silence gate hasn't closed yet
+        # Step 6: Run ASR when speech is active or the silence gate hasn't closed yet
         if is_speech or session.vad_state.is_speaking:
             # Delta gate: skip ASR if last_speech_time hasn't advanced since the last call.
             # VAD only updates last_speech_time on speech frames, so equality means the
@@ -402,7 +414,7 @@ class StreamingHandler:
                     "[%s] Delta gate: no new speech frames since last ASR — skipping",
                     session.session_id,
                 )
-                # Skip ASR but fall through to Step 7 so silence detection still finalizes.
+                # Skip ASR but fall through to Step 8 so silence detection still finalizes.
             else:
                 session.last_asr_speech_time = current_speech_ts
                 audio_to_transcribe = self._trim_to_speech(audio_window, probs)
@@ -415,7 +427,7 @@ class StreamingHandler:
                 transcript = await self.transcription_service.atranscribe(audio_to_transcribe)
 
                 if transcript:
-                    # Step 6: Stabilize hypothesis and send to client only if it changed
+                    # Step 7: Stabilize hypothesis and send to client only if it changed
                     stabilized = self.stabilization_service.stabilize(
                         session.transcript_state.stabilizer,
                         transcript,
@@ -430,6 +442,6 @@ class StreamingHandler:
                 else:
                     logger.debug(f"[{session.session_id}] ASR returned empty transcript")
 
-        # Step 7: Finalize transcript when silence threshold closes the utterance
+        # Step 8: Finalize transcript when silence threshold closes the utterance
         if not session.vad_state.is_speaking:
             await self._finalize_transcript(session)

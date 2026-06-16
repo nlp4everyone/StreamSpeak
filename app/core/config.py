@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     AUDIO_PACKET_MS: int = 20            # incoming WebSocket chunk size
     RING_BUFFER_SECONDS: int = 12        # rolling audio buffer length
     INFERENCE_INTERVAL_MS: int = 600     # min gap between ASR calls
+    RMS_SILENCE_THRESHOLD: int = 300     # int16 RMS below this skips VAD+ASR when not already speaking; frees VAD pool for active sessions
     INFERENCE_WINDOW_SECONDS: int = 6    # audio window sent to ASR
     SILENCE_THRESHOLD_MS: int = 700      # silence duration that ends an utterance
     SPEECH_PADDING_MS: int = 200         # extra audio around speech boundaries
