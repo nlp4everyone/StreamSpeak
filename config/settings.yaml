@@ -12,6 +12,7 @@ RMS_SILENCE_THRESHOLD: 300   # int16 RMS below this skips VAD+ASR when not alrea
 INFERENCE_WINDOW_SECONDS: 6   # audio window sent to ASR
 SILENCE_THRESHOLD_MS: 700     # silence duration that ends an utterance
 SPEECH_PADDING_MS: 200        # extra audio around speech boundaries
+MIN_TRIMMED_AUDIO_MS: 500     # trimmed audio shorter than this skips ASR
 
 # VAD algorithm
 VAD_THRESHOLD: 0.6            # speech probability cutoff

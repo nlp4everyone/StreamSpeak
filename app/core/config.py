@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     INFERENCE_WINDOW_SECONDS: int = 6    # audio window sent to ASR
     SILENCE_THRESHOLD_MS: int = 700      # silence duration that ends an utterance
     SPEECH_PADDING_MS: int = 200         # extra audio around speech boundaries
+    MIN_TRIMMED_AUDIO_MS: int = 500      # trimmed audio shorter than this skips ASR
 
     # ── VAD ──────────────────────────────────────────────────────────────────
     VAD_THRESHOLD: float = 0.6           # speech probability cutoff
