@@ -4,4 +4,4 @@ A production-ready multi-user streaming Speech-to-Text framework built with Fast
 
 ---
 
-🇬🇧 [English](docs/en/README.md)
+🇬🇧 [English](docs/en/README.md) | 🇻🇳 [Tiếng Việt](docs/vi/README_vi.md)
