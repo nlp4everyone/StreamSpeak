@@ -2,7 +2,7 @@
 
 Framework nhận dạng giọng nói theo thời gian thực (Speech-to-Text), hỗ trợ nhiều người dùng đồng thời, xây dựng trên FastAPI và WebSocket với độ trễ thấp.
 
-<video src="https://github.com/nlp4everyone/StreamSpeak/raw/main/docs/assets/demo.mp4" controls width="720"></video>
+[![Video Demo](docs/assets/thumbnail.png)](https://github.com/user-attachments/assets/8d480dd6-b4a3-4c1e-9bf7-44e84c4f4099)
 
 <br />
 
