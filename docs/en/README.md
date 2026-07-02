@@ -2,6 +2,8 @@
 
 A production-ready multi-user streaming Speech-to-Text framework built with FastAPI and WebSocket for low-latency real-time transcription.
 
+<video src="https://github.com/nlp4everyone/StreamSpeak/raw/main/docs/assets/demo.mp4" controls width="720"></video>
+
 <br />
 
 ## Key Features
@@ -13,6 +15,7 @@ A production-ready multi-user streaming Speech-to-Text framework built with Fast
 - **Non-blocking pipeline** — per-session inference queue + global ASR semaphore; backpressure signaling on queue or VAD pool saturation
 - **Multi-user** — fully isolated sessions; pre-allocated np.int16 ring buffer (~384 KB/session)
 - **Built-in web client** — one-click mic recording, live transcript, audio level meter (`Space` to toggle)
+- **CLI streaming client** — `scripts/stream_audio.py` streams any WAV file over the WebSocket endpoint for scripted testing without a browser
 
 <br />
 

@@ -59,5 +59,6 @@ Override `SETTINGS_YAML` env var to point to a different YAML file.
 | `HOST` | `0.0.0.0` | Server bind address |
 | `PORT` | 8000 | Server port |
 | `WORKERS` | 1 | Uvicorn worker count |
+| `LOG_TRANSCRIPT_CONTENT` | `false` | Log actual transcript text (partial/final) in `StreamingHandler`; keep `false` in production — transcript text is PII |
 
 All values are overridable via environment variables or `.env`.

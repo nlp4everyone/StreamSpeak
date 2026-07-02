@@ -2,6 +2,8 @@
 
 Framework nhận dạng giọng nói theo thời gian thực (Speech-to-Text), hỗ trợ nhiều người dùng đồng thời, xây dựng trên FastAPI và WebSocket với độ trễ thấp.
 
+<video src="https://github.com/nlp4everyone/StreamSpeak/raw/main/docs/assets/demo.mp4" controls width="720"></video>
+
 <br />
 
 ## Tính năng nổi bật
@@ -13,6 +15,7 @@ Framework nhận dạng giọng nói theo thời gian thực (Speech-to-Text), h
 - **Non-blocking pipeline** — hàng đợi inference riêng mỗi session + ASR semaphore toàn cục; gửi tín hiệu backpressure khi quá tải
 - **Đa người dùng** — mỗi session hoàn toàn độc lập; ring buffer pre-allocated (~384 KB/session)
 - **Web client tích hợp** — giao diện ghi âm một chạm, hiển thị transcript trực tiếp, phím tắt `Space` để bật/tắt
+- **CLI streaming client** — `scripts/stream_audio.py` gửi bất kỳ file WAV nào qua WebSocket endpoint, phục vụ test bằng script mà không cần trình duyệt
 
 <br />
 
